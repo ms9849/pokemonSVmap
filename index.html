@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>팔데아 도감</title>
+    <style>
+        .poly {
+            fill: rgb(0, 0, 255);
+            stroke-width: 3px;
+            stroke: rgb(0, 0, 0);
+            position: absolute;
+        }
+
+        ::placeholder {
+            text-align: center;
+        }
+
+        input {
+            min-width: 1000px;
+            min-height: 40px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 15px;
+        }
+
+        image {
+            position: absolute;
+        }
+
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+        }
+
+        td {
+            min-width: 200px;
+            max-width: 300px;
+            height: 60px;
+            border-bottom: 1px solid white;
+        }
+
+        tbody:nth-child(even) tr>td {
+            background: #eaeaed;
+        }
+
+        th {
+            background: #595a61;
+            color: #fff;
+            min-width: 200px;
+            max-width: 300px;
+            height: 60px;
+            border-bottom: 1px solid white;
+        }
+    </style>
+    <script src="./src/icon.js"></script>
+    <script src="./src/pokemon.js" type="text/javascript"></script>
+    <script src="./src/region.js" type="text/javascript"></script>
+    <script src="./src/pokeFilter.js" type="text/javascript"></script>
+    <script src="./src/pmarkers.js" type="text/javascript"></script>
+    <script>
+        let gridBlockList = [];
+        const pokemon = JSON.parse(JSON.stringify(pokemonData))['data'];
+        const region = JSON.parse(JSON.stringify(regionData))['data'];
+        let db, objStore, req = indexedDB.open("pokelist", 1);
+        req.onsuccess = function (event) {
+            db = event.target.result;
+            drawGrid();
+            drawEnc();
+            drawCatched();
+        };
+
+        req.onupgradeneeded = function (event) {
+            db = event.target.result;
+            db.createObjectStore('pokelist', { keyPath: 'id' });
+        }
+        
+        function createGridBlock(x, y, size) {
+            let rectBlock = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+
+            rectBlock.setAttribute('style', 'fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.05;stroke-opacity:0.9');
+            rectBlock.setAttribute('width', size);
+            rectBlock.setAttribute('height', size);
+            rectBlock.setAttribute('x', x);
+            rectBlock.setAttribute('y', y);
+
+            return rectBlock;
+        }
+
+        function createImageBlock(x, y, id, icon) {
+            let imageBlock = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+
+            imageBlock.setAttribute('href', icon);
+            imageBlock.setAttribute('width', '50');
+            imageBlock.setAttribute('height', '50');
+            imageBlock.setAttribute('x', x);
+            imageBlock.setAttribute('y', y);
+            imageBlock.setAttribute('class', "_" + id);
+            return imageBlock;
+        }
+
+
+        function createEncBlock(idx) {
+            let trBlock = document.createElement('tr');
+
+            let no = document.createElement('td');
+            no.innerHTML = "NO." + pokemon[idx]['no'];
+
+            let name = document.createElement('td');
+            name.innerHTML = pokemon[idx]['name'];
+
+            let evolution = document.createElement('td');
+            evolution.innerHTML = pokemon[idx]['evolution'];
+
+            trBlock.appendChild(no);
+            trBlock.appendChild(name);
+            trBlock.appendChild(evolution);
+            trBlock.setAttribute('id', idx);
+            trBlock.setAttribute('class', "pokemon");
+            trBlock.addEventListener('mouseenter', showLocation);
+            trBlock.addEventListener('mouseleave', eraseLocation);
+            trBlock.addEventListener('mousedown', changeColor);
+            return trBlock;
+        }
+
+        function changeColor(e) {
+            let clickedPokemon = e.currentTarget;
+            let transaction = db.transaction("pokelist", "readwrite").objectStore('pokelist');
+            let getReq = transaction.get(clickedPokemon.id.trim());
+            getReq.onsuccess = function (e) {
+                result = e.target.result;
+
+                if (result == undefined) {
+                    let addReq = transaction.add({
+                        id: clickedPokemon.id.trim(),
+                        name: clickedPokemon.childNodes[1].innerHTML
+                    })
+
+                    for (let i = 0; i < clickedPokemon.childNodes.length; i++) {
+                        clickedPokemon.childNodes[i].style.background = "green";
+                    }
+                }
+                else {
+                    console.log(clickedPokemon.id.trim());
+                    let delReq = transaction.delete(clickedPokemon.id.trim());
+
+                    for (let i = 0; i < clickedPokemon.childNodes.length; i++) {
+                        clickedPokemon.childNodes[i].style.background = "#eaeaed";
+                    }
+                }
+            }
+        }
+
+        function showLocation(e) {
+            let hoveredPokemon = e.currentTarget;
+            let map = document.getElementsByTagName('svg')[0];
+            let locationList = [];
+            let set, tmp = [];
+            let nationNo = pokemon[hoveredPokemon.getAttribute('id')]['nationNo'];
+
+            if (pokeFilter[nationNo + "0"] == null || pokeFilter[nationNo + "0"] == undefined) {
+                for (let i = 1; i < 10; i++) {
+                    let idx = nationNo.toString() + i.toString();
+                    if (pokeFilter[idx] != null || pokeFilter[idx] != undefined)
+                        tmp.push(pokeFilter[idx].tableIDs);
+                }
+
+                for (let i = 0; i < tmp.length; i++) {
+                    for (let j = 0; j < tmp[i].length; j++) {
+                        locationList.push(tmp[i][j]);
+                    }
+                }
+            }
+            else {
+                for (let i = 0; i < pokeFilter[nationNo + "0"].tableIDs.length; i++) {
+                    locationList.push(pokeFilter[nationNo + "0"].tableIDs[i]);
+                }
+            }
+
+            set = new Set(locationList);
+            locationList = Array.from(set);
+            for (let i = 0; i < locationList.length; i++) {
+                for (let j = 0; j < pmarkers.length; j++) {
+                    if (locationList[i] == pmarkers[j].tableID) {
+                        let block = createImageBlock(12 + (pmarkers[j].coords[0] - 125) / 250 * 50, 12 + (pmarkers[j].coords[2] - 125) / 250 * 50, pokemon[hoveredPokemon.id]['no'] - 1, pmarkers[j].icon);
+                        map.appendChild(block);
+                    }
+                }
+            }
+        }
+
+        function eraseLocation(e) {
+            let hoveredPokemon = e.currentTarget;
+            let map = document.getElementsByTagName('svg')[0];
+            let locations = document.getElementsByClassName("_" + hoveredPokemon.id);
+            let arr = Array.from(locations);
+            for (i in arr) {
+                let block = arr[i];
+                block.remove();
+            }
+        }
+
+        function drawCatched() {
+            let transaction = db.transaction("pokelist", "readwrite").objectStore('pokelist');
+            let cursorReq = transaction.openCursor();
+            cursorReq.onsuccess = function (e) {
+                let cursor = e.target.result;
+                if (cursor) {
+                    let catched = document.getElementById(`${cursor.key}`);
+                    for (let i = 0; i < catched.childNodes.length; i++) {
+                        catched.childNodes[i].style.background = "green";
+                    }
+                    cursor.continue();
+                }
+            }
+        }
+
+        function drawGrid() {
+            const size = 50;
+            let map = document.getElementsByTagName('svg')[0];
+            let line = 0;
+
+            for (let y = 12; y < 1012; y += size) {
+                for (let x = 12; x < 1012; x += size) {
+                    let block = createGridBlock(x, y, size);
+                    gridBlockList.push(block);
+                    map.appendChild(block);
+                }
+            }
+        }
+
+        function drawEnc() {
+            let pokemonEnc = document.getElementsByTagName('tbody')[0];
+            for (let i = 0; i < pokemon.length; i++) {
+                let block = createEncBlock(i);
+                pokemonEnc.appendChild(block);
+            }
+        }
+        function searchPokemon(e) {
+            let text = e.currentTarget.value.trim();
+            let searched = document.getElementsByClassName('pokemon');
+            for (i in searched) {
+                if (!searched[i].childNodes[1].innerHTML.includes(text)) {
+                    searched[i].style.display = "none";
+                }
+                else
+                    searched[i].style.display = "";
+            }
+        }
+    </script>
+</head>
+
+<body style="background-color: #00bfff">
+    <div style="text-align:center;">
+        <h3 style="color:white;">팔데아 도감</h3>
+        <div style="text-align:center;">
+            <input onkeyup="searchPokemon(event)" type="text" placeholder="포켓몬 검색">
+        </div>
+        <div style="text-align:center; display:inline-block; padding: 10px; background-color:white; border-radius:5px;">
+            <!-- svg -->
+            <svg id="map" width="1024" height="1024">
+                <image href="./static/paldea.jpg"></image>
+            </svg>
+        </div>
+        <div
+            style="overflow:scroll; height:1024px; text-align:center; vertical-align:top; display:inline-block; padding: 10px; background-color:white; border-radius:5px;">
+            <table style="table-layout:fixed; width:700px;" id="pokemonEnc">
+                <thead>
+                    <tr>
+                        <th>번호</th>
+                        <th>이름</th>
+                        <th>진화 조건</th>
+                    </tr>
+                </thead>
+                <tbody> <!-- 포켓몬 목록 -->
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>
