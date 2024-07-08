@@ -2,7 +2,7 @@
 ![image](https://github.com/ms9849/pokemonSVmap/assets/65911657/c154803e-a9c5-4199-9418-ce3abf097c62)
 
 ## 이미지 2
-![image](https://github.com/ms9849/pokemonSVmap/assets/65911657/d2a2acbf-4015-4e4a-8992-967ea2686706)
+![image](https://github.com/ms9849/pokemonSVmap/assets/65911657/a2816d20-0632-45e8-bd5f-6ea0fdc9ce34)
 
 
 Node.js, Html, css, javascript 를 활용하여 제작한 프로젝트입니다.
